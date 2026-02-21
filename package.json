@@ -10,11 +10,13 @@
     "preview": "vite preview"
   },
   "dependencies": {
+    "@mapbox/polyline": "^1.2.1",
     "@supabase/supabase-js": "^2.97.0",
     "@tailwindcss/vite": "^4.2.0",
     "axios": "^1.13.5",
     "leaflet": "^1.9.4",
     "leaflet-defaulticon-compatibility": "^0.1.2",
+    "leaflet-routing-machine": "^3.2.12",
     "mapbox-gl": "^3.18.1",
     "react": "^19.2.0",
     "react-dom": "^19.2.0",
