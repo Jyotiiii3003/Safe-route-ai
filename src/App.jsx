@@ -1,6 +1,7 @@
 import { useEffect } from 'react'
 import './App.css'
 import { supabase } from './Services/supabaseClient'
+import MapView from './components/MapView'
 
 function App() {
 
@@ -21,13 +22,7 @@ function App() {
 
 
   return (
-    <>
-    <div className='flex items-center justify-center h-screen bg-black text-white'>
-      <h3 className='font-bold text-4xl'>
-          SupaBase connected!
-      </h3>
-    </div>
-    </>
+    <MapView/>
   )
 }
 
