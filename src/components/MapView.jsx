@@ -1,5 +1,5 @@
-import React, { useEffect, useRef, useState } from "react"
-import { MapContainer, Marker, Popup, TileLayer, useMap } from "react-leaflet"
+import React, { useEffect, useState } from "react"
+import { MapContainer, Marker, Popup, TileLayer, Polyline } from "react-leaflet"
 import "leaflet/dist/leaflet.css"
 import { supabase } from "../Services/supabaseClient"
 import L from "leaflet"
@@ -20,9 +20,8 @@ const lightIcon = new L.Icon({
 
 
 
-function RouteDrawer({ start, end, trigger, onRouteReady, color }) {
-  const map = useMap()
-  const layerRef = useRef(null)
+function RouteDrawer({ start, end, trigger, onRouteReady }) {
+ 
 
   const geocode = async (place) => {
   const res = await fetch(
@@ -63,39 +62,34 @@ function RouteDrawer({ start, end, trigger, onRouteReady, color }) {
             "Authorization": "eyJvcmciOiI1YjNjZTM1OTc4NTExMTAwMDFjZjYyNDgiLCJpZCI6Ijk4NjhhZTIyMzk2NzQyMDliYzk3OTE0ZDU2MGFmOGJjIiwiaCI6Im11cm11cjY0In0="
           },
           body: JSON.stringify({
-            coordinates: [
+          coordinates: [
               [s[1], s[0]],
               [e[1], e[0]]
-            ]
-          })
-        }
+                        ],
+                alternative_routes: {
+                target_count: 3,
+                share_factor: 0.6
+                  }
+      })
+      }
       )
       console.log("Geocoded start:", s)
        console.log("Geocoded end:", e)
-      const data = await res.json()
-      if (!data.features?.length) return
+     const data = await res.json()
 
-      const coords = data.features[0].geometry.coordinates
-      const latLngs = coords.map(c => [c[1], c[0]])
-      onRouteReady(latLngs)
+if (!data.features?.length) {
+  console.warn("No routes returned")
+  return
+}
 
-      
-      if (layerRef.current) {
-        map.removeLayer(layerRef.current)
+console.log("Routes returned:", data.features.length)
+
+      const routes = data.features.map(feature =>
+      feature.geometry.coordinates.map(c => [c[1], c[0]]))
+      onRouteReady(routes)
       }
-
-      
-      const layer = L.polyline(latLngs, {
-        color: color ,
-        weight: 6
-      }).addTo(map)
-
-      layerRef.current = layer
-      map.fitBounds(layer.getBounds(), { padding: [40, 40] })
-    }
-
     loadRoute()
-  }, [trigger, start, end, map,color])
+  }, [trigger, start, end])
   
 
   return null
@@ -108,10 +102,11 @@ export default function MapView({ start, end, trigger, }) {
   const [crimes, setCrimes] = useState([])
   const [lights, setLights] = useState([])
   
-  const [routePoints, setRoutePoints] = useState([])
+  
+  const [routes, setRoutes] = useState([])
   const [safetyScore, setSafetyScore] = useState(null)
   const [dangerPoints, setDangerPoints] = useState([])
-
+  const [safestRoute, setSafestRoute] = useState([])
   const safetyColor =safetyScore === null? "red": safetyScore > 70? "green": safetyScore > 40? "orange": "red"
 
   useEffect(() => {
@@ -124,55 +119,66 @@ export default function MapView({ start, end, trigger, }) {
     load()
   }, [])
 
-  useEffect(() => {
-  console.log("Route stored:", routePoints.length)
-}, [routePoints])
+  
 
     useEffect(() => {
-  if (!routePoints.length || !crimes.length) return
+  if (!routes.length || !crimes.length) return
 
-  let risk = 0
-  let dangers = []
+  let bestRoute = null
+  let bestRisk = Infinity
+  let bestDangerPoints = []
 
-  routePoints.forEach(point => {
+  routes.forEach(route => {
 
-    crimes.forEach(crime => {
+    let risk = 0
+    let dangers = []
 
-      
-      const d =
-        Math.sqrt(
-          (point[0] - crime.latitude) ** 2 +
-          (point[1] - crime.longitude) ** 2
-        )
+    route.forEach(point => {
 
-      
-      if (d < 0.02) {
+      crimes.forEach(crime => {
 
-      dangers.push([crime.latitude, crime.longitude])
+        const d =
+          Math.sqrt(
+            (point[0] - crime.latitude) ** 2 +
+            (point[1] - crime.longitude) ** 2
+          )
 
-       if (crime.severity === "high") risk += 3
-       else if (crime.severity === "medium") risk += 2
-       else risk += 1
-      }
+        if (d < 0.02) {
 
-        
-        if (crime.severity === "high") risk += 3
-        else if (crime.severity === "medium") risk += 2
-        else risk += 1
+          dangers.push([crime.latitude, crime.longitude])
+
+          if (crime.severity === "high") risk += 3
+          else if (crime.severity === "medium") risk += 2
+          else risk += 1
+        }
+      })
     })
+
+    if (risk < bestRisk) {
+      bestRisk = risk
+      bestRoute = route
+      bestDangerPoints = dangers
+    }
+
   })
 
-  
-  const score = Math.max(0, 100 - risk)
+  const score = Math.max(0, 100 - bestRisk)
 
   setSafetyScore(score)
-  console.log("Danger points found:", dangers.length)
-  setDangerPoints(dangers)
-
-  console.log("Risk:", risk)
+  setDangerPoints(bestDangerPoints)
+  setSafestRoute(bestRoute)
+  console.log("Best route risk:", bestRisk)
   console.log("Safety Score:", score)
 
-  }, [routePoints, crimes])
+  if (bestRoute) {
+  console.log("Chosen safest route length:", bestRoute.length)
+}
+  console.log("First route length:", routes[0].length)
+
+}, [routes, crimes])
+  useEffect(() => {
+  console.log("Routes stored:", routes.length)
+}, [routes])
 
   return (
     <div className="relative h-screen w-full">
@@ -220,16 +226,60 @@ export default function MapView({ start, end, trigger, }) {
     <Popup>⚠ Dangerous area on route</Popup>
   </Marker>
 ))}
-        
-        <RouteDrawer start={start} end={end} trigger={trigger} onRouteReady={setRoutePoints} color={safetyColor}/>
+        {routes.map((route, i) => {
+
+  // fastest route
+  if (i === 0) {
+    return (
+      <Polyline
+        key={i}
+        positions={route}
+        pathOptions={{ color: "yellow", weight: 4, dashArray: "6,6" ,opacity: 0.7}}
+      />
+    )
+  }
+
+  // other routes
+  return (
+    <Polyline
+      key={i}
+      positions={route}
+      pathOptions={{ color: "#eb2ee5", weight: 5, opacity: 0.6 }}
+    />
+  )
+})}
+
+{safestRoute.length > 0 && (
+  <Polyline
+    positions={safestRoute}
+    pathOptions={{ color: safetyColor, weight: 8,opacity:4 }}
+  />
+)}
+        <RouteDrawer start={start} end={end} trigger={trigger} onRouteReady={setRoutes} />
 
       </MapContainer>
 
       {safetyScore !== null && (
-      <div className="absolute top-4 left-4 bg-white p-3 rounded shadow text-sm">
-    <b>Safety Score:</b> {safetyScore}%
+  <div className="absolute top-4 left-4 bg-white p-4 rounded shadow text-sm w-60">
+
+    <div className="font-semibold text-base">
+      🛡 Safe Route Analysis
     </div>
-    )}
+
+    <div className="mt-2">
+      <b>Safety Score:</b> {safetyScore}%
+    </div>
+
+    <div className="text-xs text-gray-600 mt-1">
+      {dangerPoints.length} danger zones detected
+    </div>
+
+    <div className="mt-2 text-xs text-gray-700">
+      AI selected the safest available route
+    </div>
+
+  </div>
+)}
       <div className="absolute bottom-4 left-4 bg-white p-3 rounded shadow text-sm">
         <div>🔴 Crime</div>
         <div>🟡 Street Light</div>
