@@ -83,9 +83,10 @@ function RouteDrawer({ start, end, trigger, onRouteReady }) {
 
       console.log("Routes returned:", data.features.length);
 
-      const routes = data.features.map((feature) =>
-        feature.geometry.coordinates.map((c) => [c[1], c[0]]),
-      );
+      const routes = data.features.map(feature => ({
+      points: feature.geometry.coordinates.map(c => [c[1], c[0]]),
+      distance: feature.properties.summary.distance,
+      duration: feature.properties.summary.duration}))
       onRouteReady(routes);
     };
     loadRoute();
@@ -104,15 +105,8 @@ export default function MapView({ start, end, trigger }) {
   const [safestRoute, setSafestRoute] = useState([]);
   const [crimeHits, setCrimeHits] = useState(0)
   const [darkSpotsCount, setDarkSpotsCount] = useState(0)
-
-  const safetyColor =
-    safetyScore === null
-      ? "red"
-      : safetyScore > 70
-        ? "green"
-        : safetyScore > 40
-          ? "orange"
-          : "red";
+  const [selectedRouteIndex, setSelectedRouteIndex] = useState(null)
+  const [routeRisks, setRouteRisks] = useState([])
 
   useEffect(() => {
     const load = async () => {
@@ -130,15 +124,15 @@ export default function MapView({ start, end, trigger }) {
 
   useEffect(() => {
     if (!routes.length || !crimes.length) return;
-
+    let risks = []
     let bestRoute = null;
     let bestRisk = Infinity;
     let bestDangerPoints = [];
     let bestCrimeHits = 0
     let bestDarkSpots = 0
 
-    routes.forEach(route => {
-
+    routes.forEach(routeObj => {
+      const route = routeObj.points
         let risk = 0
         let dangers = []
         let localCrimeHits = 0
@@ -168,7 +162,7 @@ export default function MapView({ start, end, trigger }) {
       }
     })
   })
-
+  risks.push(risk)
  
   if (isNight) {
 
@@ -193,7 +187,7 @@ export default function MapView({ start, end, trigger }) {
   
   if (risk < bestRisk) {
     bestRisk = risk
-    bestRoute = route
+    bestRoute = routeObj.points
     bestDangerPoints = dangers
     bestCrimeHits = localCrimeHits
     bestDarkSpots = localDarkSpotsCount
@@ -204,6 +198,11 @@ export default function MapView({ start, end, trigger }) {
 
     const score = Math.max(0, 100 - bestRisk);
 
+    
+    if (selectedRouteIndex !== null && routes[selectedRouteIndex]) {
+        bestRoute = routes[selectedRouteIndex]
+    }
+    setRouteRisks(risks)
     setSafetyScore(score);
     setDangerPoints(bestDangerPoints);
     setSafestRoute(bestRoute);
@@ -213,7 +212,7 @@ export default function MapView({ start, end, trigger }) {
     console.log("Safety Score:", score);
 
     
-  }, [routes, crimes]);
+  }, [routes, crimes,selectedRouteIndex]);
   
   useEffect(() => {
   const hour = new Date().getHours()
@@ -225,7 +224,7 @@ export default function MapView({ start, end, trigger }) {
   }
 
 }, [])
-  
+ const RISK_RED_THRESHOLD = 80 
   return (
     <div className="relative h-screen w-full">
       <MapContainer
@@ -284,36 +283,53 @@ export default function MapView({ start, end, trigger }) {
           </Marker>
         ))}
         {routes.map((route, i) => {
-          if (i === 0) {
+
+            const risk = routeRisks[i] ?? 0
+            const isSafest =safestRoute && JSON.stringify(route.points) === JSON.stringify(safestRoute)
+            const isSelected = selectedRouteIndex === i
+
+             let color = "#7aa2ff"   
+
+            if (i === 0) color = "purple"
+            if (isSafest) color = "green"
+            if (isSelected) {
+              color = risk > RISK_RED_THRESHOLD ? "red" : "green"
+            }
+
             return (
               <Polyline
-                key={i}
-                positions={route}
-                pathOptions={{
-                  color: "yellow",
-                  weight: 4,
-                  dashArray: "6,6",
-                  opacity: 0.7,
-                }}
-              />
-            );
+              key={i}positions={route.points}eventHandlers={{
+                  click: () => setSelectedRouteIndex(i)
+                  }}
+                  pathOptions={{
+                  color,
+                  weight: isSelected || isSafest ? 7 : 3,
+                  opacity: isSelected || isSafest ? 1 : 0.6
+                  }}
+                />
+              )
+            })}
+
+        {routes.map((route, i) => {
+
+            const mid = route.points[Math.floor(route.points.length / 2)]
+            if (!mid) return null
+
+            const km = (route.distance / 1000).toFixed(2)
+            const mins = Math.round(route.duration / 60)
+            const risk = routeRisks[i] ?? 0
+            const riskLabel =
+            risk < 30 ? "Safe": risk < 80 ? "Moderate": "Risky"
+            const riskColor =risk < 30 ? "green": risk < 80 ? "orange": "red"
+
+             return (
+              <Marker
+                key={"label-"+i}position={mid}icon={L.divIcon({className: "",html: `<div style=" background:white;padding:6px 10px;border-radius:8px;box-shadow:0 2px 8px rgba(0,0,0,0.25);font-size:12px;text-align:center;min-width:110px;white-space:nowrap;line-height:1.3;">
+                  <b>${km} km</b> • ${mins} min<br/><span style="color:${riskColor};font-weight:bold"> ${riskLabel}</span></div> `})}/>
+                )
+            })
           }
-
-          return (
-            <Polyline
-              key={i}
-              positions={route}
-              pathOptions={{ color: "#eb2ee5", weight: 5, opacity: 0.6 }}
-            />
-          );
-        })}
-
-        {safestRoute.length > 0 && (
-          <Polyline
-            positions={safestRoute}
-            pathOptions={{ color: safetyColor, weight: 8, opacity: 4 }}
-          />
-        )}
+        
         <RouteDrawer
           start={start}
           end={end}
@@ -323,25 +339,24 @@ export default function MapView({ start, end, trigger }) {
       </MapContainer>
 
       {safetyScore !== null && (
-        <div className="absolute top-4 left-4 bg-white p-4 rounded shadow text-sm w-60">
-          <div className="font-semibold text-base">🛡 Safe Route Analysis</div>
+      <div className="absolute top-4 right-4 bg-white p-4 rounded-xl shadow text-sm w-64">
 
-          <div className="mt-2">
-            <b>Safety Score:</b> {safetyScore}%
-          </div>
+          <div className="font-bold text-lg mb-2">Route Summary</div>
 
-           <div>🚨 Crime spots near route: {crimeHits}</div>
-           {isNight && <div>🌙 Dark spots: {darkSpotsCount}</div>}
+          <div>🛡 Safety Score: <b>{safetyScore}%</b></div>
 
-          <div className="text-xs text-gray-600 mt-1">
-            {dangerPoints.length} danger zones detected
-          </div>
+          <div>🚨 Crime hits: <b>{crimeHits}</b></div>
 
-          <div className="mt-2 text-xs text-gray-700">
-            AI selected the safest available route
-          </div>
-        </div>
-      )}
+          <div>🌑 Dark spots: <b>{darkSpotsCount}</b></div>
+
+          <div>🕒 Time: <b>{isNight ? "Night" : "Day"}</b></div>
+
+          <div className="mt-2 text-xs text-gray-500">
+              Route chosen by AI safety model
+       </div>
+
+  </div>
+)}
 
       {isNight && (
         <div className="absolute top-32 right-4 bg-indigo-600 text-white p-2 rounded text-xs shadow">
