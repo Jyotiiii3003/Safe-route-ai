@@ -22,7 +22,7 @@ const lightIcon = new L.Icon({
   iconAnchor: [16, 32],
 });
 
-function RouteDrawer({ start, end, trigger, onRouteReady }) {
+function RouteDrawer({ start, end, trigger, useMyLocation, onRouteReady, setLoadingRoute }) {
   const geocode = async (place) => {
     const res = await fetch(
       `https://photon.komoot.io/api/?q=${encodeURIComponent(place)}&limit=1&lang=en`,
@@ -44,12 +44,30 @@ function RouteDrawer({ start, end, trigger, onRouteReady }) {
 
   useEffect(() => {
     if (!trigger) return;
-    if (!start?.trim() || !end?.trim()) return;
+    if (!end?.trim()) return
+    if (!useMyLocation && !start?.trim()) return
 
-    const loadRoute = async () => {
-      const s = await geocode(start);
+  const loadRoute = async () => {
+      try{
+      setLoadingRoute(true)
+     let s
+
+    if (useMyLocation && navigator.geolocation) {
+      const position = await new Promise((resolve, reject) =>
+    navigator.geolocation.getCurrentPosition(resolve, reject)
+      )
+
+      s = [
+    position.coords.latitude,
+    position.coords.longitude
+    ]
+    } else {
+        s = await geocode(start)
+    }
       const e = await geocode(end);
-      if (!s || !e) return;
+      if (!s || !e){
+        setLoadingRoute(false)
+        return;}
 
       const res = await fetch(
         "https://api.openrouteservice.org/v2/directions/foot-walking/geojson",
@@ -74,6 +92,7 @@ function RouteDrawer({ start, end, trigger, onRouteReady }) {
       );
       console.log("Geocoded start:", s);
       console.log("Geocoded end:", e);
+      
       const data = await res.json();
 
       if (!data.features?.length) {
@@ -88,14 +107,19 @@ function RouteDrawer({ start, end, trigger, onRouteReady }) {
       distance: feature.properties.summary.distance,
       duration: feature.properties.summary.duration}))
       onRouteReady(routes);
+      setLoadingRoute(false)
+      } catch (error) {
+        console.error("Error loading route:", error);
+        setLoadingRoute(false);
+      }
     };
     loadRoute();
-  }, [trigger, start, end]);
+  }, [trigger, start, end, useMyLocation, onRouteReady]);
 
   return null;
 }
 
-export default function MapView({ start, end, trigger }) {
+export default function MapView({ start, end, trigger, useMyLocation }) {
   const [crimes, setCrimes] = useState([]);
   const [lights, setLights] = useState([]);
   const [isNight, setIsNight] = useState(false)
@@ -107,6 +131,7 @@ export default function MapView({ start, end, trigger }) {
   const [darkSpotsCount, setDarkSpotsCount] = useState(0)
   const [selectedRouteIndex, setSelectedRouteIndex] = useState(null)
   const [routeRisks, setRouteRisks] = useState([])
+  const [loadingRoute, setLoadingRoute] = useState(false)
 
   useEffect(() => {
     const load = async () => {
@@ -334,9 +359,28 @@ export default function MapView({ start, end, trigger }) {
           start={start}
           end={end}
           trigger={trigger}
+          useMyLocation={useMyLocation}
           onRouteReady={setRoutes}
+          setLoadingRoute={setLoadingRoute}
         />
+        {loadingRoute && (
+          <div className="absolute inset-0 flex items-center justify-center bg-white/70 z-[9999]">
+          <div className="bg-white px-6 py-4 rounded-xl shadow-xl flex items-center gap-3">
+
+          <svg className="w-6 h-6 text-blue-600 animate-spin" viewBox="0 0 24 24">
+            <circle cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" className="opacity-25"/>
+            <path d="M22 12a10 10 0 0 1-10 10" stroke="currentColor" strokeWidth="4" className="opacity-75"/>
+          </svg>
+
+          <span className="text-sm font-medium">
+              Finding safest route...
+          </span>
+          </div>
+          </div>
+        )}
       </MapContainer>
+
+        
 
       {safetyScore !== null && (
       <div className="absolute top-4 right-4 bg-white p-4 rounded-xl shadow text-sm w-64">
@@ -354,20 +398,20 @@ export default function MapView({ start, end, trigger }) {
           <div className="mt-2 text-xs text-gray-500">
               Route chosen by AI safety model
        </div>
-
-  </div>
-)}
+      </div>
+      )}
 
       {isNight && (
         <div className="absolute top-32 right-4 bg-indigo-600 text-white p-2 rounded text-xs shadow">
-    🌙 Night Safety Mode Active
-      </div>
-      )}
+              🌙 Night Safety Mode Active
+        </div>
+            )   }
 
       <div className="absolute bottom-4 left-4 bg-white p-3 rounded shadow text-sm">
         <div>🔴 Crime</div>
         <div>🟡 Street Light</div>
       </div>
+      
     </div>
   );
 }
