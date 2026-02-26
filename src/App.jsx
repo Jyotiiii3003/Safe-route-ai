@@ -1,53 +1,107 @@
-import { useEffect, useState } from 'react'
-import './App.css'
-import { supabase } from './Services/supabaseClient'
-import MapView from './components/MapView'
+import { BrowserRouter, Routes, Route, Navigate } from "react-router-dom";
+import { useEffect, useState } from "react";
+import { supabase } from "./Services/supabaseClient";
+
+import Signup from "./pages/signUp";
+import MainApp from "./components/MainApp";
+import Admin from "./pages/Admin";
 
 function App() {
-  const [start, setStart] = useState("")
-  const [end, setEnd] = useState("")
-  const [trigger, setTrigger] = useState(false)
-  const [useMyLocation, setUseMyLocation] = useState(false)
+  const [session, setSession] = useState(null);
+  const [loading, setLoading] = useState(true);
+  const [verified, setVerified] = useState(false);
 
   useEffect(() => {
-    const fetchData= async()=>{
-      const {data : crimes}= await supabase .from("crime_points") .select("*")
-      
-      const {data : lights}= await supabase .from("street_lights") .select("*")
-        console.log("Crime Data", crimes)
-        console.log("Street lights",lights)
-      
-    }
-    fetchData()
-   
-  }, [])
-  
-  
+    const getSessionAndProfile = async () => {
+      const { data } = await supabase.auth.getSession();
+      const currentSession = data.session;
+      setSession(currentSession);
 
+      if (currentSession) {
+        const { data: profile } = await supabase
+          .from("profiles")
+          .select("verified")
+          .eq("id", currentSession.user.id)
+          .single();
+
+        setVerified(profile?.verified ?? false);
+      }
+
+      setLoading(false);
+    };
+
+    getSessionAndProfile();
+
+    const { data: listener } = supabase.auth.onAuthStateChange(
+      (_event, session) => {
+        setSession(session);
+      }
+    );
+
+    return () => {
+      listener.subscription.unsubscribe();
+    };
+  }, []);
+
+  if (loading) return <div>Loading...</div>;
 
   return (
-    <div className='h-screen flex flex-col'>
-      <div>
-        <input className='p-2 rounded w-full' placeholder='Enter Start Location' value={start} onChange={e=>setStart(e.target.value)}/>
-        <input className='p-2 rounded w-full' placeholder='Enter destination' value={end} onChange={e=>setEnd(e.target.value)}/>
-        <button onClick={() => {
-            if (!start || !end) {
-            alert("Enter start and destination")
-            return
-              }
-            setTrigger(prev => !prev)}}
-            className="bg-blue-600 text-white px-4 py-2 rounded">Find Route
-        </button>
+    <BrowserRouter>
+      <Routes>
+        <Route
+          path="/"
+          element={
+            session ? (
+              verified ? (
+                <MainApp />
+              ) : (
+                <Navigate to="/pending" />
+              )
+            ) : (
+              <Navigate to="/signUp" />
+            )
+          }
+        />
 
-        <button onClick={() => {setUseMyLocation(true)
-         setTrigger(prev => !prev)   }}
-          className="bg-green-600 text-white px-4 py-2 rounded">Use My Location</button>
+        <Route
+          path="/signUp"
+          element={
+            session ? <Navigate to="/" /> : <Signup />
+          }
+        />
 
-      </div>
-       <MapView start={start} end={end} trigger={trigger} useMyLocation={useMyLocation} />
-    </div>
-   
-  )
+        <Route
+          path="/pending"
+          element={
+            session && !verified ? (
+              <div className="flex items-center justify-center h-screen">
+                <div className="bg-white p-6 rounded shadow text-center">
+                  <h2 className="text-xl font-bold mb-2">
+                    Verification Under Review
+                  </h2>
+                  <p>
+                    Your account is being reviewed. Access will be granted once verified.
+                  </p>
+                </div>
+              </div>
+            ) : (
+              <Navigate to="/" />
+            )
+          }
+        />
+        <Route
+          path="/admin"
+            element={
+              session && verified ? (
+              <Admin />
+               ) : (
+                <Navigate to="/" />
+            )
+          }
+        />
+      </Routes>
+    </BrowserRouter>
+  );
 }
 
-export default App
+export default App;
