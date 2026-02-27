@@ -10,6 +10,7 @@ function App() {
   const [session, setSession] = useState(null);
   const [loading, setLoading] = useState(true);
   const [verified, setVerified] = useState(false);
+  const [role, setRole] = useState(null);
 
   useEffect(() => {
     const getSessionAndProfile = async () => {
@@ -20,11 +21,12 @@ function App() {
       if (currentSession) {
         const { data: profile } = await supabase
           .from("profiles")
-          .select("verified")
+          .select("verified, role")
           .eq("id", currentSession.user.id)
-          .single();
+          .maybeSingle();
 
         setVerified(profile?.verified ?? false);
+        setRole(profile?.role ?? "user");
       }
 
       setLoading(false);
@@ -91,13 +93,11 @@ function App() {
         />
         <Route
           path="/admin"
-            element={
-              session && verified ? (
-              <Admin />
-               ) : (
-                <Navigate to="/" />
-            )
-          }
+          element={
+          session && role === "admin"
+          ? <Admin />
+          : <Navigate to="/" />
+       }
         />
       </Routes>
     </BrowserRouter>
