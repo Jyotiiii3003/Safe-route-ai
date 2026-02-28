@@ -20,8 +20,14 @@ export default function Signup() {
       return;
     }
 
+    if (!image) {
+      setError("Please upload a selfie.");
+      return;
+    }
+
     setLoading(true);
 
+    // 1️⃣ Create Auth User
     const { data, error } = await supabase.auth.signUp({
       email,
       password,
@@ -35,45 +41,61 @@ export default function Signup() {
 
     const user = data.user;
 
-    // Mock AI confidence score
-    const aiScore = Math.floor(Math.random() * 20) + 80;
-
-    // Upload selfie if provided
-    if (image) {
-      const allowedTypes = ["image/jpeg", "image/png"];
-      const maxSize = 2 * 1024 * 1024;
-
-      if (!allowedTypes.includes(image.type)) {
-        setError("Only JPG or PNG images allowed.");
-        setLoading(false);
-        return;
-      }
-
-      if (image.size > maxSize) {
-        setError("Image must be under 2MB.");
-        setLoading(false);
-        return;
-      }
-
-      await supabase.storage
-        .from("selfies")
-        .upload(`${user.id}/selfie-${Date.now()}.jpg`, image);
+    if (!user) {
+      setLoading(false);
+      setError("User creation failed.");
+      return;
     }
 
-    // Insert profile
-    const { error: profileError } = await supabase
-  .from("profiles")
-  .insert([
-    {
-      id: user.id,
-      declaration_accepted: true,
-      ai_confidence: aiScore,
-      verified: false,
-      role: "user",
-    },
-  ]);
+    // 2️⃣ Validate Image
+    const allowedTypes = ["image/jpeg", "image/png"];
+    const maxSize = 2 * 1024 * 1024;
 
-console.log("Profile insert error:", profileError);
+    if (!allowedTypes.includes(image.type)) {
+      setError("Only JPG or PNG images allowed.");
+      setLoading(false);
+      return;
+    }
+
+    if (image.size > maxSize) {
+      setError("Image must be under 2MB.");
+      setLoading(false);
+      return;
+    }
+
+    // 3️⃣ Upload Selfie
+    const filePath = `${user.id}/selfie-${Date.now()}.jpg`;
+
+    const { error: uploadError } = await supabase.storage
+      .from("selfies")
+      .upload(filePath, image);
+
+    if (uploadError) {
+      setLoading(false);
+      setError(uploadError.message);
+      return;
+    }
+
+    // 4️⃣ Mock AI Gender Confidence
+    // (Later replace with real AI API call)
+    const aiScore = Math.floor(Math.random() * 20) + 80;
+
+    // 5️⃣ Update Profile (trigger already created row)
+    const { error: updateError } = await supabase
+      .from("profiles")
+      .update({
+        declaration_accepted: true,
+        ai_confidence: aiScore,
+        verified: false, // Always false → Admin must approve
+      })
+      .eq("id", user.id);
+
+    if (updateError) {
+      setLoading(false);
+      setError(updateError.message);
+      return;
+    }
+
     setLoading(false);
     navigate("/");
   };

@@ -5,10 +5,13 @@ export default function Admin() {
   const [users, setUsers] = useState([]);
 
   const fetchUsers = async () => {
-    const { data } = await supabase
-      .from("profiles")
-      .select("*")
-      .eq("verified", false);
+    const { data, error } = await supabase
+  .from("profiles")
+  .select("*")
+  .eq("verified", false);
+
+console.log("Pending users:", data);
+console.log("Error:", error);   
 
     setUsers(data || []);
   };
@@ -18,13 +21,17 @@ export default function Admin() {
   }, []);
 
   const approveUser = async (id) => {
-    await supabase
-      .from("profiles")
-      .update({ verified: true })
-      .eq("id", id);
+  const { data, error } = await supabase
+    .from("profiles")
+    .update({ verified: true })
+    .eq("id", id)
+    .select();
 
-    fetchUsers();
-  };
+  console.log("Approve result:", data);
+  console.log("Approve error:", error);
+
+  fetchUsers();
+};
 
   const rejectUser = async (id) => {
     await supabase

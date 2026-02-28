@@ -13,37 +13,45 @@ function App() {
   const [role, setRole] = useState(null);
 
   useEffect(() => {
-    const getSessionAndProfile = async () => {
-      const { data } = await supabase.auth.getSession();
-      const currentSession = data.session;
-      setSession(currentSession);
-
-      if (currentSession) {
-        const { data: profile } = await supabase
-          .from("profiles")
-          .select("verified, role")
-          .eq("id", currentSession.user.id)
-          .maybeSingle();
-
-        setVerified(profile?.verified ?? false);
-        setRole(profile?.role ?? "user");
-      }
-
+  const fetchProfile = async (currentSession) => {
+    if (!currentSession) {
+      setSession(null);
+      setRole(null);
+      setVerified(false);
       setLoading(false);
-    };
+      return;
+    }
 
-    getSessionAndProfile();
+    setSession(currentSession);
 
-    const { data: listener } = supabase.auth.onAuthStateChange(
-      (_event, session) => {
-        setSession(session);
-      }
-    );
+    const { data: profile } = await supabase
+      .from("profiles")
+      .select("verified, role")
+      .eq("id", currentSession.user.id)
+      .maybeSingle();
 
-    return () => {
-      listener.subscription.unsubscribe();
-    };
-  }, []);
+    setVerified(profile?.verified ?? false);
+    setRole(profile?.role ?? "user");
+    setLoading(false);
+    console.log("JWT app_metadata:", currentSession.user.app_metadata);
+  };
+
+  // Initial load
+  supabase.auth.getSession().then(({ data }) => {
+    fetchProfile(data.session);
+  });
+
+  // Listen for login/logout
+  const { data: listener } = supabase.auth.onAuthStateChange(
+    (_event, session) => {
+      fetchProfile(session);
+    }
+  );
+
+  return () => {
+    listener.subscription.unsubscribe();
+  };
+}, []);
 
   if (loading) return <div>Loading...</div>;
 
@@ -51,19 +59,21 @@ function App() {
     <BrowserRouter>
       <Routes>
         <Route
-          path="/"
-          element={
-            session ? (
-              verified ? (
-                <MainApp />
-              ) : (
-                <Navigate to="/pending" />
-              )
-            ) : (
-              <Navigate to="/signUp" />
-            )
-          }
-        />
+            path="/"
+                element={
+                  session ? (
+      role === "admin" ? (
+        <Navigate to="/admin" />
+      ) : verified ? (
+        <MainApp />
+      ) : (
+        <Navigate to="/pending" />
+      )
+    ) : (
+      <Navigate to="/signUp" />
+    )
+  }
+/>
 
         <Route
           path="/signUp"
