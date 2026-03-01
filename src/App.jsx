@@ -86,14 +86,12 @@ function App() {
           path="/pending"
           element={
             session && !verified ? (
-              <div className="flex items-center justify-center h-screen">
-                <div className="bg-white p-6 rounded shadow text-center">
-                  <h2 className="text-xl font-bold mb-2">
-                    Verification Under Review
+              <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-pink-50 via-white to-purple-50">
+                <div className="bg-white shadow-xl border border-pink-200 rounded-3xl p-10 text-center max-w-md">
+                  <h2 className="text-2xl font-bold text-pink-600 mb-4">
+                    🌸 Verification Under Review
                   </h2>
-                  <p>
-                    Your account is being reviewed. Access will be granted once verified.
-                  </p>
+                  <p className="text-gray-600">Our admin team is reviewing your profile.  You’ll get access once verified.</p>
                 </div>
               </div>
             ) : (

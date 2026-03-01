@@ -27,7 +27,7 @@ export default function Signup() {
 
     setLoading(true);
 
-    // 1️⃣ Create Auth User
+    
     const { data, error } = await supabase.auth.signUp({
       email,
       password,
@@ -47,7 +47,7 @@ export default function Signup() {
       return;
     }
 
-    // 2️⃣ Validate Image
+    
     const allowedTypes = ["image/jpeg", "image/png"];
     const maxSize = 2 * 1024 * 1024;
 
@@ -63,7 +63,7 @@ export default function Signup() {
       return;
     }
 
-    // 3️⃣ Upload Selfie
+    
     const filePath = `${user.id}/selfie-${Date.now()}.jpg`;
 
     const { error: uploadError } = await supabase.storage
@@ -76,17 +76,16 @@ export default function Signup() {
       return;
     }
 
-    // 4️⃣ Mock AI Gender Confidence
-    // (Later replace with real AI API call)
+    
     const aiScore = Math.floor(Math.random() * 20) + 80;
 
-    // 5️⃣ Update Profile (trigger already created row)
+   
     const { error: updateError } = await supabase
       .from("profiles")
       .update({
         declaration_accepted: true,
         ai_confidence: aiScore,
-        verified: false, // Always false → Admin must approve
+        verified: false, 
       })
       .eq("id", user.id);
 
@@ -119,18 +118,20 @@ export default function Signup() {
   };
 
   return (
-    <div className="flex justify-center items-center h-screen bg-pink-50">
-      <div className="bg-white p-8 rounded-xl shadow w-96">
-        <h2 className="text-2xl font-bold mb-4 text-center">
-          Women Safety App
+    <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-pink-100 via-white to-purple-100 px-4">
+      <div className="bg-white/80 backdrop-blur-xl border border-pink-200 shadow-2xl rounded-3xl p-10 w-full max-w-md transition-all duration-300">
+        <h2 className="text-3xl font-extrabold text-center bg-gradient-to-r from-pink-600 to-purple-600 bg-clip-text text-transparent mb-2">
+          Route Saathi
         </h2>
-
+        <p className="text-center text-gray-500 text-sm mb-8">
+        Secure access for verified women users
+        </p>
         <input
           type="email"
           placeholder="Enter email"
           value={email}
           onChange={(e) => setEmail(e.target.value)}
-          className="w-full border p-2 mb-3 rounded"
+          className="w-full border border-gray-200 focus:border-pink-400 focus:ring-2 focus:ring-pink-200 transition p-3 mb-4 rounded-xl outline-none"
         />
 
         <input
@@ -138,21 +139,22 @@ export default function Signup() {
           placeholder="Enter password"
           value={password}
           onChange={(e) => setPassword(e.target.value)}
-          className="w-full border p-2 mb-3 rounded"
+          className="w-full border border-gray-200 focus:border-pink-400 focus:ring-2 focus:ring-pink-200 transition p-3 mb-4 rounded-xl outline-none"
         />
 
         <input
           type="file"
           accept="image/jpeg,image/png"
           onChange={(e) => setImage(e.target.files[0])}
-          className="mb-3"
+          className="mb-4 text-sm"
         />
 
-        <label className="flex gap-2 text-sm mb-3">
+        <label className="flex gap-2 text-sm mb-6 text-gray-600">
           <input
             type="checkbox"
             checked={declaration}
             onChange={(e) => setDeclaration(e.target.checked)}
+            className="accent-pink-500"
           />
           I confirm that I identify as a woman.
         </label>
@@ -160,7 +162,7 @@ export default function Signup() {
         <button
           onClick={handleSignup}
           disabled={loading}
-          className="w-full bg-pink-600 text-white p-2 rounded mb-2"
+          className="w-full bg-gradient-to-r from-pink-500 to-purple-500 hover:scale-[1.02] active:scale-[0.98] transition transform text-white font-semibold p-3 rounded-xl shadow-lg mb-3"
         >
           {loading ? "Processing..." : "Sign Up"}
         </button>
@@ -168,13 +170,13 @@ export default function Signup() {
         <button
           onClick={handleLogin}
           disabled={loading}
-          className="w-full bg-gray-700 text-white p-2 rounded"
+          className="w-full bg-gray-800 hover:bg-gray-900 transition text-white font-semibold p-3 rounded-xl"
         >
           Login
         </button>
 
         {error && (
-          <div className="text-red-500 text-sm mt-3 text-center">
+          <div className="text-rose-500 text-sm mt-4 text-center">
             {error}
           </div>
         )}

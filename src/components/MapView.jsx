@@ -402,7 +402,7 @@ export default function MapView({ start, end, trigger, useMyLocation }) {
       )}
 
       {isNight && (
-        <div className="absolute top-32 right-4 bg-indigo-600 text-white p-2 rounded text-xs shadow">
+        <div className="absolute top-32 left-4 bg-indigo-600 text-white p-2 rounded text-xs shadow">
               🌙 Night Safety Mode Active
         </div>
             )   }

@@ -43,7 +43,7 @@ console.log("Error:", error);
   };
 
   return (
-    <div className="p-6">
+    <div className="min-h-screen bg-gradient-to-br from-pink-50 to-purple-50 p-8">
       <h2 className="text-xl font-bold mb-4">Pending Verifications</h2>
 
       {users.length === 0 && <p>No pending users.</p>}
@@ -51,7 +51,7 @@ console.log("Error:", error);
       {users.map((user) => (
         <div
           key={user.id}
-          className="border p-4 rounded mb-3 flex justify-between items-center"
+          className="bg-white shadow-lg border border-pink-100 rounded-2xl p-6 mb-4 flex justify-between items-center hover:shadow-xl transition"
         >
           <div>
             <p><b>User ID:</b> {user.id}</p>
@@ -61,14 +61,14 @@ console.log("Error:", error);
           <div className="flex gap-2">
             <button
               onClick={() => approveUser(user.id)}
-              className="bg-green-600 text-white px-3 py-1 rounded"
+              className="bg-emerald-500 hover:bg-emerald-600 transition text-white px-4 py-2 rounded-xl shadow"
             >
               Approve
             </button>
 
             <button
               onClick={() => rejectUser(user.id)}
-              className="bg-red-600 text-white px-3 py-1 rounded"
+              className="bbg-rose-500 hover:bg-rose-600 transition text-white px-4 py-2 rounded-xl shadow"
             >
               Reject
             </button>
