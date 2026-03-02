@@ -5,6 +5,7 @@ import {
   Popup,
   TileLayer,
   Polyline,
+  useMap
 } from "react-leaflet";
 import "leaflet/dist/leaflet.css";
 import { supabase } from "../Services/supabaseClient";
@@ -24,23 +25,28 @@ const lightIcon = new L.Icon({
 
 function RouteDrawer({ start, end, trigger, useMyLocation, onRouteReady, setLoadingRoute }) {
   const geocode = async (place) => {
+  try {
     const res = await fetch(
-      `https://photon.komoot.io/api/?q=${encodeURIComponent(place)}&limit=1&lang=en`,
+      `https://api.openrouteservice.org/geocode/search?api_key=${import.meta.env.VITE_ORS_KEY}&text=${encodeURIComponent(place)}&boundary.country=IN`
     );
+
     const data = await res.json();
 
-    if (!data.features?.length) return null;
-
-    const feature = data.features[0];
-
-    if (feature.properties?.country !== "India") {
-      console.warn("Geocode outside India:", feature.properties?.country);
+    if (!data.features || data.features.length === 0) {
+      console.warn("No geocode results found");
       return null;
     }
 
-    const c = feature.geometry.coordinates;
-    return [c[1], c[0]];
-  };
+    const coords = data.features[0].geometry.coordinates;
+
+    
+    return [coords[1], coords[0]];
+
+  } catch (error) {
+    console.error("Geocode error:", error);
+    return null;
+  }
+};
 
   useEffect(() => {
     if (!trigger) return;
@@ -119,6 +125,18 @@ function RouteDrawer({ start, end, trigger, useMyLocation, onRouteReady, setLoad
   return null;
 }
 
+  function FollowUser({ position }) {
+  const map = useMap();
+
+  useEffect(() => {
+    if (position) {
+      map.setView(position, 16);
+    }
+  }, [position, map]);
+
+  return null;
+}
+
 export default function MapView({ start, end, trigger, useMyLocation }) {
   const [crimes, setCrimes] = useState([]);
   const [lights, setLights] = useState([]);
@@ -132,6 +150,9 @@ export default function MapView({ start, end, trigger, useMyLocation }) {
   const [selectedRouteIndex, setSelectedRouteIndex] = useState(null)
   const [routeRisks, setRouteRisks] = useState([])
   const [loadingRoute, setLoadingRoute] = useState(false)
+  const [isNavigating, setIsNavigating] = useState(false);
+  const [currentPosition, setCurrentPosition] = useState(null);
+  const [watchId, setWatchId] = useState(null);
 
   useEffect(() => {
     const load = async () => {
@@ -250,12 +271,51 @@ export default function MapView({ start, end, trigger, useMyLocation }) {
 
 }, [])
  const RISK_RED_THRESHOLD = 80 
+
+    const startNavigation = () => {
+  if (!navigator.geolocation) return;
+
+  const id = navigator.geolocation.watchPosition(
+    (position) => {
+      setCurrentPosition([
+        position.coords.latitude,
+        position.coords.longitude,
+      ]);
+    },
+    (error) => {
+      console.error("Navigation error:", error);
+    },
+    {
+      enableHighAccuracy: true,
+    }
+  );
+
+  setWatchId(id);
+  setIsNavigating(true);
+};
+
+const stopNavigation = () => {
+  if (watchId) {
+    navigator.geolocation.clearWatch(watchId);
+  }
+  setIsNavigating(false);
+  setCurrentPosition(null);
+};
+
+useEffect(() => {
+  return () => {
+    if (watchId) {
+      navigator.geolocation.clearWatch(watchId);
+    }
+  };
+}, [watchId]);
+
   return (
     <div className="relative h-screen w-full">
       <MapContainer
         center={[28.6139, 77.209]}
         zoom={13}
-        className="h-screen w-full"
+        className="h-screen w-full z-0"
       >
         <TileLayer
           attribution="&copy; OpenStreetMap contributors"
@@ -335,6 +395,21 @@ export default function MapView({ start, end, trigger, useMyLocation }) {
               )
             })}
 
+            {currentPosition && (
+            <Marker position={currentPosition}icon={new L.Icon({
+              iconUrl: "https://maps.google.com/mapfiles/ms/icons/blue-dot.png",
+              iconSize: [32, 32],
+              iconAnchor: [16, 32],
+            })
+            }>
+              <Popup>You are here</Popup>
+            </Marker>
+            )}
+
+              {isNavigating && currentPosition && (
+              <FollowUser position={currentPosition} />
+              )}
+
         {routes.map((route, i) => {
 
             const mid = route.points[Math.floor(route.points.length / 2)]
@@ -380,7 +455,22 @@ export default function MapView({ start, end, trigger, useMyLocation }) {
         )}
       </MapContainer>
 
+        {routes.length > 0 && !isNavigating && (
         
+          <button onClick={startNavigation} className="absolute bottom-6 right-6 z-[9999] bg-gradient-to-r from-pink-500 to-purple-500 text-white px-6 py-3 rounded-2xl shadow-xl">
+          Start Navigation
+          </button>
+         
+        )}
+
+      {isNavigating && (
+        
+       <button onClick={stopNavigation}
+          className="absolute bottom-6 right-6 z-[9999] bg-gradient-to-r from-pink-500 to-purple-500 text-white px-6 py-3 rounded-2xl shadow-xl">
+          Stop Navigation
+        </button>
+       
+      )}
 
       {safetyScore !== null && (
       <div className="absolute top-4 right-4 bg-white p-4 rounded-xl shadow text-sm w-64">
