@@ -1,8 +1,10 @@
 import { useEffect, useState } from "react";
 import { supabase } from "../Services/supabaseClient";
+import { useNavigate } from "react-router-dom";
 
 export default function Admin() {
   const [users, setUsers] = useState([]);
+  const navigate = useNavigate();
 
   const fetchUsers = async () => {
     const { data, error } = await supabase
@@ -41,7 +43,10 @@ console.log("Error:", error);
 
     fetchUsers();
   };
-
+  const handleLogout = async () => {
+  await supabase.auth.signOut();
+  navigate("/signUp");
+};
   return (
     <div className="min-h-screen bg-gradient-to-br from-pink-50 to-purple-50 p-8">
       <h2 className="text-xl font-bold mb-4">Pending Verifications</h2>
@@ -73,6 +78,12 @@ console.log("Error:", error);
               Reject
             </button>
           </div>
+          <button
+        onClick={handleLogout}
+        className="bg-red-500 hover:bg-red-600 text-white px-4 py-2 rounded-lg shadow"
+      >
+        Logout
+      </button>
         </div>
       ))}
     </div>

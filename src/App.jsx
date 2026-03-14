@@ -28,7 +28,7 @@ function PendingPage() {
 
         <button className="bg-gradient-to-r from-red-500 to-pink-500"
           onClick={handleLogout}
-          className="bg-red-500 hover:bg-red-600 text-white px-5 py-2 rounded-lg shadow"
+          
         >
           Logout
         </button>
