@@ -76,11 +76,13 @@ function App() {
 />
 
         <Route
-          path="/signUp"
-          element={
-            session ? <Navigate to="/" /> : <Signup />
-          }
-        />
+  path="/signUp"
+  element={
+    !session || role === "admin"
+      ? <Signup />
+      : <Navigate to="/" />
+  }
+/>
 
         <Route
           path="/pending"
