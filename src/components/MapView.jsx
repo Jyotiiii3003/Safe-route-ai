@@ -10,6 +10,7 @@ import {
 import "leaflet/dist/leaflet.css";
 import { supabase } from "../Services/supabaseClient";
 import L from "leaflet";
+import "leaflet.heat";
 
 const crimeIcon = new L.Icon({
   iconUrl: "https://maps.google.com/mapfiles/ms/icons/red-dot.png",
@@ -22,6 +23,19 @@ const lightIcon = new L.Icon({
   iconSize: [32, 32],
   iconAnchor: [16, 32],
 });
+
+const cctvIcon = new L.Icon({
+  iconUrl: "https://maps.google.com/mapfiles/ms/icons/purple-dot.png",
+  iconSize: [32, 32],
+  iconAnchor: [16, 32],
+})
+
+const policeIcon = new L.Icon({
+  iconUrl: "https://maps.google.com/mapfiles/ms/icons/blue.png",
+  iconSize: [32, 32],
+  iconAnchor: [16, 32],
+})
+
 
 function RouteDrawer({ start, end, trigger, useMyLocation, onRouteReady, setLoadingRoute }) {
   const geocode = async (place) => {
@@ -82,7 +96,7 @@ function RouteDrawer({ start, end, trigger, useMyLocation, onRouteReady, setLoad
           headers: {
             "Content-Type": "application/json",
             Authorization:
-              "eyJvcmciOiI1YjNjZTM1OTc4NTExMTAwMDFjZjYyNDgiLCJpZCI6Ijk4NjhhZTIyMzk2NzQyMDliYzk3OTE0ZDU2MGFmOGJjIiwiaCI6Im11cm11cjY0In0=",
+              import.meta.env.VITE_ORS_KEY,
           },
           body: JSON.stringify({
             coordinates: [
@@ -96,8 +110,7 @@ function RouteDrawer({ start, end, trigger, useMyLocation, onRouteReady, setLoad
           }),
         },
       );
-      console.log("Geocoded start:", s);
-      console.log("Geocoded end:", e);
+      
       
       const data = await res.json();
 
@@ -106,7 +119,7 @@ function RouteDrawer({ start, end, trigger, useMyLocation, onRouteReady, setLoad
         return;
       }
 
-      console.log("Routes returned:", data.features.length);
+      
 
       const routes = data.features.map(feature => ({
       points: feature.geometry.coordinates.map(c => [c[1], c[0]]),
@@ -137,6 +150,52 @@ function RouteDrawer({ start, end, trigger, useMyLocation, onRouteReady, setLoad
   return null;
 }
 
+    function CrimeHeatmap({ crimes }) {
+  const map = useMap();
+
+  useEffect(() => {
+    if (!crimes.length) return;
+
+    const points = crimes.map(c => [
+      c.latitude,
+      c.longitude,
+      c.severity === "high" ? 1 : c.severity === "medium" ? 0.6 : 0.3
+    ]);
+
+    const heatLayer = L.heatLayer(points, {
+      radius: 30,
+      blur: 20,
+      maxZoom: 17,
+      gradient: {
+        0.2: "blue",
+        0.4: "lime",
+        0.6: "orange",
+        0.8: "red"
+      }
+    });
+
+    heatLayer.addTo(map);
+
+    return () => {
+      map.removeLayer(heatLayer);
+    };
+  }, [crimes, map]);
+
+  return null;
+}
+
+
+  function getTimeRiskMultiplier() {
+  const hour = new Date().getHours();
+
+  if (hour >= 6 && hour < 18) return 1;
+  if (hour >= 18 && hour < 22) return 1.3;
+  if (hour >= 22 || hour < 3) return 1.8;
+  if (hour >= 3 && hour < 6) return 1.4;
+
+  return 1;
+}
+
 export default function MapView({ start, end, trigger, useMyLocation }) {
   const [crimes, setCrimes] = useState([]);
   const [lights, setLights] = useState([]);
@@ -153,18 +212,36 @@ export default function MapView({ start, end, trigger, useMyLocation }) {
   const [isNavigating, setIsNavigating] = useState(false);
   const [currentPosition, setCurrentPosition] = useState(null);
   const [watchId, setWatchId] = useState(null);
+  const [cctvCameras, setCctvCameras] = useState([])
+  const [policeStations, setPoliceStations] = useState([])
+  const [showCrimes, setShowCrimes] = useState(true);
+  const [showLights, setShowLights] = useState(true);
+  const [showCCTV, setShowCCTV] = useState(true);
+  const [showPolice, setShowPolice] = useState(true);
 
   useEffect(() => {
     const load = async () => {
-      const { data: crimeData } = await supabase
-        .from("crime_points")
-        .select("*");
-      const { data: lightData } = await supabase
-        .from("street_lights")
-        .select("*");
-      setCrimes(crimeData || []);
-      setLights(lightData || []);
-    };
+  const { data: crimeData } = await supabase
+    .from("crime_points")
+    .select("*")
+
+  const { data: lightData } = await supabase
+    .from("street_lights")
+    .select("*")
+
+  const { data: cctvData } = await supabase
+    .from("cctv_cameras")
+    .select("*")
+
+  const { data: policeData } = await supabase
+    .from("police_stations")
+    .select("*")
+
+  setCrimes(crimeData || [])
+  setLights(lightData || [])
+  setCctvCameras(cctvData || [])
+  setPoliceStations(policeData || [])
+}
     load();
   }, []);
 
@@ -198,16 +275,47 @@ export default function MapView({ start, end, trigger, useMyLocation }) {
         dangers.push([crime.latitude, crime.longitude])
         localCrimeHits++
 
-        let weight = 1
-        if (crime.severity === "high") weight = 3
-        else if (crime.severity === "medium") weight = 2
+        let weight = 1;
 
-        if (isNight) weight *= 1.5
+        if (crime.severity === "high") weight = 3;
+        else if (crime.severity === "medium") weight = 2;
+
+        const timeMultiplier = getTimeRiskMultiplier();
+        if (crime.crime_type === "robbery") weight *= 1.6;
+        if (crime.crime_type === "assault") weight *= 1.8;
+        if (crime.crime_type === "theft") weight *= 1.2;
+        weight *= timeMultiplier;
 
         risk += weight
       }
     })
+
+    cctvCameras.forEach(cam => {
+
+    const d = Math.sqrt(
+      (point[0] - cam.latitude) ** 2 +
+      (point[1] - cam.longitude) ** 2
+    )
+
+    if (d < cam.coverage_radius) {
+      risk -= 0.5
+    }
+
   })
+
+  cctvCameras.forEach(cam => {
+
+    const d = Math.sqrt(
+      (point[0] - cam.latitude) ** 2 +
+      (point[1] - cam.longitude) ** 2
+    )
+
+    if (d < cam.coverage_radius) {
+      risk -= 0.5
+    }
+
+  })
+ })
   risks.push(risk)
  
   if (isNight) {
@@ -254,8 +362,7 @@ export default function MapView({ start, end, trigger, useMyLocation }) {
     setSafestRoute(bestRoute);
     setCrimeHits(bestCrimeHits)
     setDarkSpotsCount(bestDarkSpots)
-    console.log("Best route risk:", bestRisk);
-    console.log("Safety Score:", score);
+   
 
     
   }, [routes, crimes,selectedRouteIndex]);
@@ -310,6 +417,84 @@ useEffect(() => {
   };
 }, [watchId]);
 
+function getSegmentRisk(point, crimes, lights, cctvCameras, policeStations) {
+
+  let risk = 0
+
+  
+  crimes.forEach(crime => {
+
+    const d = Math.sqrt(
+      (point[0] - crime.latitude) ** 2 +
+      (point[1] - crime.longitude) ** 2
+    )
+
+    if (d < 0.01) {
+
+      let weight = crime.severity
+
+      if (crime.crime_type === "robbery") weight *= 1.6
+      if (crime.crime_type === "assault") weight *= 1.8
+      if (crime.crime_type === "theft") weight *= 1.2
+
+      risk += weight
+    }
+
+  })
+
+
+  
+  lights.forEach(light => {
+
+    const d = Math.sqrt(
+      (point[0] - light.latitude) ** 2 +
+      (point[1] - light.longitude) ** 2
+    )
+
+    if (d < 0.01) {
+
+      if (!light.working) risk += 2
+      else if (light.intensity === 1) risk += 1
+
+    }
+
+  })
+
+
+ 
+  cctvCameras.forEach(cam => {
+
+    const d = Math.sqrt(
+      (point[0] - cam.latitude) ** 2 +
+      (point[1] - cam.longitude) ** 2
+    )
+
+    if (d < cam.coverage_radius) {
+      risk -= 0.7
+    }
+
+  })
+
+
+  
+  policeStations.forEach(station => {
+
+    const d = Math.sqrt(
+      (point[0] - station.latitude) ** 2 +
+      (point[1] - station.longitude) ** 2
+    )
+
+    if (d < 0.015) {
+      risk -= 1
+    }
+
+  })
+
+  return Math.max(risk, 0)
+}
+
+  
+
   return (
     <div className="relative h-screen w-full">
       <MapContainer
@@ -322,7 +507,9 @@ useEffect(() => {
           url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png"
         />
 
-        {crimes.map((c) => (
+        <CrimeHeatmap crimes={crimes} />
+
+        {showCrimes && crimes.map((c) => (
           <Marker
             key={c.id}
             position={[c.latitude, c.longitude]}
@@ -336,7 +523,35 @@ useEffect(() => {
           </Marker>
         ))}
 
-        {lights.map((l) => (
+        {showCCTV && cctvCameras.map((cam) => (
+        <Marker
+        key={cam.id}
+        position={[cam.latitude, cam.longitude]}
+        icon={cctvIcon}
+        >
+        <Popup>
+        <b>CCTV Camera</b>
+        <br />
+        Coverage radius: {cam.coverage_radius}
+        </Popup>
+        </Marker>
+      ))}
+
+        {showPolice && policeStations.map((station) => (
+         <Marker
+          key={station.id}
+          position={[station.latitude, station.longitude]}
+          icon={policeIcon}
+        >
+        <Popup>
+        <b>{station.name}</b>
+         <br />
+         Police Station
+        </Popup>
+      </Marker>
+      ))}
+
+        {showLights && lights.map((l) => (
           <Marker
             key={l.id}
             position={[l.latitude, l.longitude]}
@@ -367,34 +582,69 @@ useEffect(() => {
             <Popup>⚠ Dangerous area on route</Popup>
           </Marker>
         ))}
-        {routes.map((route, i) => {
+        
+        
+  {routes.map((route, i) => {
 
-            const risk = routeRisks[i] ?? 0
-            const isSafest =safestRoute && JSON.stringify(route.points) === JSON.stringify(safestRoute)
-            const isSelected = selectedRouteIndex === i
+  const isSafest =
+    safestRoute &&
+    JSON.stringify(route.points) === JSON.stringify(safestRoute)
 
-             let color = "#7aa2ff"   
+  const isSelected = selectedRouteIndex === i
 
-            if (i === 0) color = "purple"
-            if (isSafest) color = "green"
-            if (isSelected) {
-              color = risk > RISK_RED_THRESHOLD ? "red" : "green"
-            }
+  let baseColor = "#7aa2ff"
 
-            return (
-              <Polyline
-              key={i}positions={route.points}eventHandlers={{
-                  click: () => setSelectedRouteIndex(i)
-                  }}
-                  pathOptions={{
-                  color,
-                  weight: isSelected || isSafest ? 7 : 3,
-                  opacity: isSelected || isSafest ? 1 : 0.6
-                  }}
-                />
-              )
-            })}
+  if (i === 0) baseColor = "purple"      
+  if (isSafest) baseColor = "green"      
 
+  
+  if (!isSelected) {
+    return (
+      <Polyline
+        key={i}
+        positions={route.points}
+        eventHandlers={{
+          click: () => setSelectedRouteIndex(i)
+        }}
+        pathOptions={{
+          color: baseColor,
+          weight: isSafest ? 7 : 4,
+          opacity: 0.7
+        }}
+      />
+    )
+  }
+
+ 
+  const segments = []
+
+  for (let j = 0; j < route.points.length - 1; j++) {
+
+    const p1 = route.points[j]
+    const p2 = route.points[j + 1]
+
+    const risk = getSegmentRisk( p1,crimes,lights,cctvCameras,policeStations)
+
+    let color = "green"
+
+    if (risk > 3) color = "red"
+    else if (risk > 1.5) color = "orange"
+
+    segments.push(
+      <Polyline
+        key={`${i}-${j}`}
+        positions={[p1, p2]}
+        pathOptions={{
+          color,
+          weight: 7,
+          opacity: 0.9
+        }}
+      />
+    )
+  }
+
+  return segments
+})}
             {currentPosition && (
             <Marker position={currentPosition}icon={new L.Icon({
               iconUrl: "https://maps.google.com/mapfiles/ms/icons/blue-dot.png",
@@ -485,6 +735,8 @@ useEffect(() => {
 
           <div>🕒 Time: <b>{isNight ? "Night" : "Day"}</b></div>
 
+          <div>⏱ Time Risk Multiplier: <b>{getTimeRiskMultiplier().toFixed(2)}</b></div>
+
           <div className="mt-2 text-xs text-gray-500">
               Route chosen by AI safety model
        </div>
@@ -497,10 +749,41 @@ useEffect(() => {
         </div>
             )   }
 
-      <div className="absolute bottom-4 left-4 bg-white p-3 rounded shadow text-sm">
-        <div>🔴 Crime</div>
-        <div>🟡 Street Light</div>
-      </div>
+        <div className="absolute top-4 left-4 z-[1000] bg-white/90 backdrop-blur p-4 rounded-xl shadow text-sm space-y-2">
+
+  <div className="font-bold">Map Layers</div>
+
+  <label className="flex items-center gap-2">
+    <input type="checkbox" checked={showCrimes} onChange={() => setShowCrimes(!showCrimes)} />
+    🔴 Crime
+  </label>
+
+  <label className="flex items-center gap-2">
+    <input type="checkbox" checked={showLights} onChange={() => setShowLights(!showLights)} />
+    🟡 Street Lights
+  </label>
+
+  <label className="flex items-center gap-2">
+    <input type="checkbox" checked={showCCTV} onChange={() => setShowCCTV(!showCCTV)} />
+    🟣 CCTV Cameras
+  </label>
+
+  <label className="flex items-center gap-2">
+    <input type="checkbox" checked={showPolice} onChange={() => setShowPolice(!showPolice)} />
+    🔵 Police Stations
+  </label>
+
+</div>
+
+      <div className="absolute bottom-4 left-4 z-[1000] bg-white/90 backdrop-blur p-3 rounded-xl shadow text-sm space-y-1">
+  <div>🔴 Crime Location</div>
+  <div>🟡 Street Light</div>
+  <div>🟣 CCTV Camera</div>
+  <div>🔵 Police Station</div>
+  <div>🟢 Safe Segment</div>
+  <div>🟠 Moderate Risk</div>
+  <div>🔴 Dangerous Segment</div>
+  </div>
       
     </div>
   );
