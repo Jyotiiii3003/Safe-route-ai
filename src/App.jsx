@@ -1,10 +1,42 @@
-import { BrowserRouter, Routes, Route, Navigate } from "react-router-dom";
+import { BrowserRouter, Routes, Route, Navigate,useNavigate } from "react-router-dom";
 import { useEffect, useState } from "react";
 import { supabase } from "./Services/supabaseClient";
 
 import Signup from "./pages/signUp";
 import MainApp from "./components/MainApp";
 import Admin from "./pages/Admin";
+
+function PendingPage() {
+  const navigate = useNavigate();
+
+  const handleLogout = async () => {
+    await supabase.auth.signOut();
+    navigate("/signUp");
+  };
+
+  return (
+    <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-pink-50 via-white to-purple-50">
+      <div className="bg-white shadow-xl border border-pink-200 rounded-3xl p-10 text-center max-w-md">
+        
+        <h2 className="text-2xl font-bold text-pink-600 mb-4">
+          🌸 Verification Under Review
+        </h2>
+
+        <p className="text-gray-600 mb-6">
+          Our admin team is reviewing your profile. You’ll get access once verified.
+        </p>
+
+        <button className="bg-gradient-to-r from-red-500 to-pink-500"
+          onClick={handleLogout}
+          className="bg-red-500 hover:bg-red-600 text-white px-5 py-2 rounded-lg shadow"
+        >
+          Logout
+        </button>
+
+      </div>
+    </div>
+  );
+}
 
 function App() {
   const [session, setSession] = useState(null);
@@ -85,22 +117,13 @@ function App() {
 />
 
         <Route
-          path="/pending"
-          element={
-            session && !verified ? (
-              <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-pink-50 via-white to-purple-50">
-                <div className="bg-white shadow-xl border border-pink-200 rounded-3xl p-10 text-center max-w-md">
-                  <h2 className="text-2xl font-bold text-pink-600 mb-4">
-                    🌸 Verification Under Review
-                  </h2>
-                  <p className="text-gray-600">Our admin team is reviewing your profile.  You’ll get access once verified.</p>
-                </div>
-              </div>
-            ) : (
-              <Navigate to="/" />
-            )
-          }
-        />
+  path="/pending"
+  element={
+    session && !verified
+      ? <PendingPage />
+      : <Navigate to="/" />
+  }
+/>
         <Route
           path="/admin"
           element={
