@@ -10,7 +10,8 @@ export default function Admin() {
     const { data, error } = await supabase
   .from("profiles")
   .select("*")
-  .eq("verified", false);
+  .eq("verified", false)
+  .eq("role", "user");
 
 console.log("Pending users:", data);
 console.log("Error:", error);   

@@ -91,9 +91,9 @@ function App() {
     <BrowserRouter>
       <Routes>
         <Route
-            path="/"
-                element={
-                  session ? (
+  path="/"
+  element={
+    session ? (
       role === "admin" ? (
         <Navigate to="/admin" />
       ) : verified ? (
