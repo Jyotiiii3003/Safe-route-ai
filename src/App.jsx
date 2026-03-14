@@ -26,7 +26,7 @@ function PendingPage() {
           Our admin team is reviewing your profile. You’ll get access once verified.
         </p>
 
-        <button className="bg-gradient-to-r from-red-500 to-pink-500"
+        <button className="bg-red-500 hover:bg-red-600 text-white px-4 py-2 rounded-lg shadow"
           onClick={handleLogout}
           
         >
