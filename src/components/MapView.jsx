@@ -246,6 +246,7 @@ export default function MapView({ start, end, trigger, useMyLocation }) {
   }, []);
 
   useEffect(() => {
+    console.log("useEffect running")
     if (!routes.length || !crimes.length) return;
     let risks = []
     let bestRoute = null;
@@ -254,7 +255,11 @@ export default function MapView({ start, end, trigger, useMyLocation }) {
     let bestCrimeHits = 0
     let bestDarkSpots = 0
 
-    routes.forEach(routeObj => {
+    routes.forEach((routeObj,i) => {
+      
+      if (selectedRouteIndex !== null && i !== selectedRouteIndex) {
+    return;
+  }
       const route = routeObj.points
         let risk = 0
         let dangers = []
@@ -270,7 +275,7 @@ export default function MapView({ start, end, trigger, useMyLocation }) {
         (point[1] - crime.longitude) ** 2
       )
 
-      if (d < 0.02) {
+      if (d < 0.01) {
 
         dangers.push([crime.latitude, crime.longitude])
         localCrimeHits++
@@ -290,18 +295,7 @@ export default function MapView({ start, end, trigger, useMyLocation }) {
       }
     })
 
-    cctvCameras.forEach(cam => {
 
-    const d = Math.sqrt(
-      (point[0] - cam.latitude) ** 2 +
-      (point[1] - cam.longitude) ** 2
-    )
-
-    if (d < cam.coverage_radius) {
-      risk -= 0.5
-    }
-
-  })
 
   cctvCameras.forEach(cam => {
 
@@ -316,7 +310,7 @@ export default function MapView({ start, end, trigger, useMyLocation }) {
 
   })
  })
-  risks.push(risk)
+  
  
   if (isNight) {
 
@@ -328,7 +322,7 @@ export default function MapView({ start, end, trigger, useMyLocation }) {
           (point[1] - light.longitude) ** 2
         )
 
-        if (d < 0.02 && !light.working) {
+        if (d < 0.01 && !light.working) {
           localDarkSpotsCount++
         }
 
@@ -339,23 +333,23 @@ export default function MapView({ start, end, trigger, useMyLocation }) {
   }
 
   
-  if (risk < bestRisk) {
-    bestRisk = risk
-    bestRoute = routeObj.points
-    bestDangerPoints = dangers
-    bestCrimeHits = localCrimeHits
-    bestDarkSpots = localDarkSpotsCount
-    
-  }
+  bestRisk = risk
+bestRoute = routeObj.points
+bestDangerPoints = dangers
+bestCrimeHits = localCrimeHits
+bestDarkSpots = localDarkSpotsCount
+
+console.log("Route", i, "Risk:", risk)
 
 })
 
-    const score = Math.max(0, 100 - bestRisk);
-
+    const normalizedRisk = bestRisk / 50; 
+    const score = Math.round(Math.max(0, 100 - normalizedRisk));
+   
     
-    if (selectedRouteIndex !== null && routes[selectedRouteIndex]) {
-        bestRoute = routes[selectedRouteIndex]
-    }
+    if (selectedRouteIndex === null && routes.length > 0) {
+  bestRoute = routes[0].points
+}
     setRouteRisks(risks)
     setSafetyScore(score);
     setDangerPoints(bestDangerPoints);
@@ -363,9 +357,9 @@ export default function MapView({ start, end, trigger, useMyLocation }) {
     setCrimeHits(bestCrimeHits)
     setDarkSpotsCount(bestDarkSpots)
    
-
+  console.log("Selected Route Index:", selectedRouteIndex)
     
-  }, [routes, crimes,selectedRouteIndex]);
+  }, [routes, crimes, lights, cctvCameras, policeStations, selectedRouteIndex]);
   
   useEffect(() => {
   const hour = new Date().getHours()
@@ -604,7 +598,7 @@ function getSegmentRisk(point, crimes, lights, cctvCameras, policeStations) {
         key={i}
         positions={route.points}
         eventHandlers={{
-          click: () => setSelectedRouteIndex(i)
+          click: () => {setSelectedRouteIndex(i);}
         }}
         pathOptions={{
           color: baseColor,
