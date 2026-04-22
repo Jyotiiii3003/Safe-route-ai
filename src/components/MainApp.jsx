@@ -13,7 +13,7 @@ export default function MainApp() {
         
       <div className="bg-white shadow-md px-6 py-4 flex justify-between items-center">
         <h1 className="text-xl font-bold bg-gradient-to-r from-pink-500 to-purple-500 bg-clip-text text-transparent">
-          Route Saathi
+          SafeRoute AI
         </h1>
 
         <button

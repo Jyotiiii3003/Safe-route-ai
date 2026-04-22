@@ -339,7 +339,7 @@ bestDangerPoints = dangers
 bestCrimeHits = localCrimeHits
 bestDarkSpots = localDarkSpotsCount
 
-console.log("Route", i, "Risk:", risk)
+
 
 })
 

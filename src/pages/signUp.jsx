@@ -121,7 +121,7 @@ export default function Signup() {
     <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-pink-100 via-white to-purple-100 px-4">
       <div className="bg-white/80 backdrop-blur-xl border border-pink-200 shadow-2xl rounded-3xl p-10 w-full max-w-md transition-all duration-300">
         <h2 className="text-3xl font-extrabold text-center bg-gradient-to-r from-pink-600 to-purple-600 bg-clip-text text-transparent mb-2">
-          Route Saathi
+          SafeRoute AI
         </h2>
         <p className="text-center text-gray-500 text-sm mb-8">
         Secure access for verified women users
