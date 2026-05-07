@@ -1,4 +1,4 @@
-# 🚶 AI Safe Route Predictor
+# 🚶 AI Safe Route Predictor 
 
 A smart map-based web app that predicts the safest walking route using crime data, street lighting, and time-of-day analysis.
 
