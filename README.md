@@ -40,7 +40,7 @@ to generate a dynamic **Safety Score** and recommend the safest available path.
 
 ##  Key Features
 
-### 🛣Smart Route Analysis
+### Smart Route Analysis
 - Compare up to **3 alternative routes**
 - AI-based route risk scoring
 - Dynamic safest route selection
