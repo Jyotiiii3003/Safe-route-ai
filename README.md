@@ -1,4 +1,12 @@
-#  SafeRoute AI
+<div align="center">
+
+<img src="https://capsule-render.vercel.app/api?type=waving&color=0:00C853,100:0A192F&height=250&section=header&text=SafeRoute%20AI&fontSize=65&fontColor=ffffff&animation=fadeIn&fontAlignY=40&desc=Prioritizing%20Safety%20Over%20Speed&descAlignY=62&descSize=22" />
+
+### 🛡️ AI-Powered Women Safety Navigation Platform
+
+*Analyzing crime hotspots, street-light coverage, and time-of-day risks to recommend the safest route.*
+
+</div>
 
 <div align="center">
 
@@ -9,9 +17,6 @@
 ![TailwindCSS](https://img.shields.io/badge/TailwindCSS-Styling-38BDF8?style=for-the-badge&logo=tailwind-css&logoColor=white)
 ![Vite](https://img.shields.io/badge/Vite-Build_Tool-646CFF?style=for-the-badge&logo=vite&logoColor=white)
 
-###  AI-Powered Women Safety Navigation Platform
-
-*Prioritizing safety over speed through intelligent route analysis.*
 
 </div>
 
