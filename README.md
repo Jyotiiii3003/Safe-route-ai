@@ -40,7 +40,7 @@ to generate a dynamic **Safety Score** and recommend the safest available path.
 
 ##  Key Features
 
-### 🛣 Smart Route Analysis
+### 🛣Smart Route Analysis
 - Compare up to **3 alternative routes**
 - AI-based route risk scoring
 - Dynamic safest route selection
@@ -97,7 +97,7 @@ Display safest route
 
 ---
 
-## 📊 Risk Scoring Engine
+##  Risk Scoring Engine
 
 ### Crime Severity Weights
 
@@ -132,7 +132,7 @@ Safety Score = 100 - Total Risk
 
 ---
 
-## 📈 Project Impact
+## Project Impact
 
 -  Evaluates **3 route alternatives per search**
 -  Processes **400+ route coordinates** for safety analysis
